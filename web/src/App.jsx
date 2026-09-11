@@ -58,19 +58,22 @@ function App() {
     let isMounted = true;
     async function checkHealth() {
       try {
-        const clean = apiUrl.replace(/\/+$/, '');
+        const baseUrl = import.meta.env.VITE_API_URL || apiUrl;
+        const clean = baseUrl.replace(/\/+$/, '');
         const res = await fetch(`${clean}/api/health`, {
           method: 'GET',
           headers: { 'Bypass-Tunnel-Reminder': 'true' },
           signal: AbortSignal.timeout(4000),
         });
-        if (isMounted) {
-          setIsApiOnline(res.ok);
+        
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) setIsApiOnline(data.status === 'ok');
+        } else {
+          if (isMounted) setIsApiOnline(false);
         }
       } catch {
-        if (isMounted) {
-          setIsApiOnline(false);
-        }
+        if (isMounted) setIsApiOnline(false);
       }
     }
 
