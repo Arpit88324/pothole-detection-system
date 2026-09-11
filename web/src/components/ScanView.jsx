@@ -9,7 +9,7 @@ function getSeverityLabel(count) {
   return 'low';
 }
 
-export default function ScanView({ onDetectionComplete, isLoading, setIsLoading, apiUrl, onOpenSettings, showToast }) {
+export default function ScanView({ onDetectionComplete, isLoading, setIsLoading, apiUrl, isApiOnline, onOpenSettings, showToast }) {
   const [scanMode, setScanMode] = useState('upload'); // 'upload' | 'camera'
   const [selectedImage, setSelectedImage] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -24,7 +24,6 @@ export default function ScanView({ onDetectionComplete, isLoading, setIsLoading,
   const [liveBoxes, setLiveBoxes] = useState([]);
   const [liveFps, setLiveFps] = useState(0);
   const [liveLatency, setLiveLatency] = useState(0);
-  const [isConnected, setIsConnected] = useState(true);
   const fileInputRef = useRef(null);
 
   // GPS — on-demand only (captured at detection time, not continuously)
@@ -211,7 +210,6 @@ export default function ScanView({ onDetectionComplete, isLoading, setIsLoading,
             const data = await res.json();
             const filteredBoxes = (data.detections || []).filter(b => b.confidence >= confidenceThreshold);
             setLiveBoxes(filteredBoxes);
-            setIsConnected(true);
             const latency = Math.round(performance.now() - frameStart);
             setLiveLatency(latency);
 
@@ -252,10 +250,10 @@ export default function ScanView({ onDetectionComplete, isLoading, setIsLoading,
             }
             // ─────────────────────────────────────────────────────────────────
           } else {
-            setIsConnected(false);
+            console.warn('Stream detect failed with status:', res.status);
           }
         } catch (err) {
-          setIsConnected(false);
+          console.error('Stream detect error:', err);
         }
 
         frameCount++;
@@ -689,9 +687,9 @@ export default function ScanView({ onDetectionComplete, isLoading, setIsLoading,
 
         <div className="flex flex-col gap-1">
           <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">API Status</span>
-          <span className={`text-xs font-bold font-mono flex items-center gap-1.5 ${isConnected ? 'text-emerald-400' : 'text-red-400'}`}>
-            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
-            {isConnected ? 'ONLINE (READY)' : 'OFFLINE'}
+          <span className={`text-xs font-bold font-mono flex items-center gap-1.5 ${isApiOnline ? 'text-emerald-400' : 'text-red-400'}`}>
+            <span className={`w-2 h-2 rounded-full ${isApiOnline ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
+            {isApiOnline ? 'ONLINE (READY)' : 'OFFLINE'}
           </span>
         </div>
       </div>
