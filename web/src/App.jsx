@@ -185,6 +185,7 @@ function App() {
             isLoading={isLoading}
             setIsLoading={setIsLoading}
             apiUrl={apiUrl}
+            isApiOnline={isApiOnline}
             onOpenSettings={() => setIsSettingsOpen(true)}
             showToast={showToast}
           />
