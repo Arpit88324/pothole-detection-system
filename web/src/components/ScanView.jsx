@@ -1,5 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useGPS } from '../hooks/useGPS';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// Derive severity label consistent with ResultsView.jsx
+function getSeverityLabel(count) {
+  if (count >= 3) return 'critical';
+  if (count >= 1) return 'moderate';
+  return 'low';
+}
 
 export default function ScanView({ onDetectionComplete, isLoading, setIsLoading, apiUrl, onOpenSettings, showToast }) {
   const [scanMode, setScanMode] = useState('upload'); // 'upload' | 'camera'
@@ -18,6 +26,10 @@ export default function ScanView({ onDetectionComplete, isLoading, setIsLoading,
   const [liveLatency, setLiveLatency] = useState(0);
   const [isConnected, setIsConnected] = useState(true);
   const fileInputRef = useRef(null);
+
+  // GPS — on-demand only (captured at detection time, not continuously)
+  const { gpsStatus, gpsError, getPositionOnce } = useGPS();
+  const lastGpsSaveRef = useRef(0); // epoch ms of last save attempt
 
   // Preset Sample Images (High Quality Road Hazard Demos)
   const sampleImages = [
@@ -202,6 +214,43 @@ export default function ScanView({ onDetectionComplete, isLoading, setIsLoading,
             setIsConnected(true);
             const latency = Math.round(performance.now() - frameStart);
             setLiveLatency(latency);
+
+            // ── GPS pothole logging: capture GPS only when pothole detected ──
+            const now = Date.now();
+            const GPS_SAVE_INTERVAL_MS = 5000;
+            if (
+              filteredBoxes.length > 0 &&
+              now - lastGpsSaveRef.current >= GPS_SAVE_INTERVAL_MS
+            ) {
+              lastGpsSaveRef.current = now; // throttle regardless of GPS result
+              const topBox   = filteredBoxes[0];
+              const severity = getSeverityLabel(filteredBoxes.length);
+              const tUrl     = (apiUrl || 'http://localhost:5000').replace(/\/+$/, '');
+
+              // Capture GPS at this exact moment — non-blocking via .then/.catch
+              getPositionOnce().then((fix) => {
+                fetch(`${tUrl}/api/gps_detect`, {
+                  method:  'POST',
+                  headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' },
+                  body: JSON.stringify({
+                    latitude:     fix.lat,
+                    longitude:    fix.lng,
+                    gps_accuracy: fix.accuracy,
+                    confidence:   parseFloat((topBox.confidence * 100).toFixed(1)),
+                    severity,
+                    class_name:   topBox.name || 'pothole',
+                  }),
+                })
+                  .then(r => r.json())
+                  .then(d => { if (d.saved) console.log(`📍 GPS logged id=${d.id} sev=${d.severity}`); })
+                  .catch(() => {});
+              }).catch((err) => {
+                // GPS unavailable — log once, do NOT save a record
+                console.warn('GPS unavailable at detection time:', err.message);
+                showToast?.('Pothole detected — GPS unavailable, location not saved.', 'error');
+              });
+            }
+            // ─────────────────────────────────────────────────────────────────
           } else {
             setIsConnected(false);
           }
@@ -508,7 +557,7 @@ export default function ScanView({ onDetectionComplete, isLoading, setIsLoading,
                   {/* HUD Framing Crosshairs & Reticles */}
                   <div className="absolute inset-0 pointer-events-none border border-amber-500/10 m-4 rounded-2xl flex flex-col justify-between p-4">
                     {/* Top HUD Telemetry */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-2 bg-slate-950/80 border border-slate-800/80 backdrop-blur-md px-3 py-1.5 rounded-xl">
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
                         <span className="font-mono text-xs font-bold text-slate-200">LIVE FEED</span>
@@ -516,6 +565,24 @@ export default function ScanView({ onDetectionComplete, isLoading, setIsLoading,
                         <span className="font-mono text-xs text-amber-400">{liveFps} FPS</span>
                         <span className="text-slate-600">|</span>
                         <span className="font-mono text-xs text-cyan-400">{liveLatency}ms</span>
+                      </div>
+
+                      {/* GPS Status Pill */}
+                      <div className={`flex items-center gap-1.5 backdrop-blur-md px-3 py-1.5 rounded-xl border text-xs font-mono font-bold ${
+                        gpsStatus === 'active'
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                          : gpsStatus === 'requesting'
+                          ? 'bg-slate-950/80 border-slate-700/80 text-slate-400'
+                          : 'bg-red-500/10 border-red-500/30 text-red-400'
+                      }`}>
+                        <span className="material-symbols-outlined text-sm">
+                          {gpsStatus === 'active' ? 'gps_fixed' : gpsStatus === 'requesting' ? 'gps_not_fixed' : 'gps_off'}
+                        </span>
+                        {gpsStatus === 'active'
+                          ? 'GPS LOCKED'
+                          : gpsStatus === 'requesting'
+                          ? 'GPS...'
+                          : 'NO GPS'}
                       </div>
 
                       <div className="flex items-center gap-2 bg-slate-950/80 border border-slate-800/80 backdrop-blur-md px-3 py-1.5 rounded-xl">

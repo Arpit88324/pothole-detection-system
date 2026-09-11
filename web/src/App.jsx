@@ -6,6 +6,7 @@ import ResultsView from './components/ResultsView';
 import AnalyticsView from './components/AnalyticsView';
 import HistoryView from './components/HistoryView';
 import MapView from './components/MapView';
+import RecordsView from './components/RecordsView';
 import LoginView from './components/LoginView';
 import SignupView from './components/SignupView';
 import ForgotPasswordView from './components/ForgotPasswordView';
@@ -29,7 +30,7 @@ function App() {
 
   // API Backend URL state (stored in localStorage)
   const [apiUrl, setApiUrl] = useState(() => {
-    return localStorage.getItem('pothole_api_url') || 'http://localhost:5000';
+    return import.meta.env.VITE_API_URL || localStorage.getItem('pothole_api_url') || 'http://localhost:5000';
   });
   const [isApiOnline, setIsApiOnline] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -213,7 +214,11 @@ function App() {
         )}
 
         {currentView === 'map' && (
-          <MapView showToast={showToast} />
+          <MapView showToast={showToast} apiUrl={apiUrl} />
+        )}
+
+        {currentView === 'records' && (
+          <RecordsView apiUrl={apiUrl} showToast={showToast} onNavigate={handleNavigate} />
         )}
 
         {currentView === 'login' && (

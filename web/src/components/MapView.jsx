@@ -1,96 +1,96 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 const GEOAPIFY_KEY = 'f2c866843de043509aeb5c918773eb41';
 
-const HAZARDS_DATA = [
-  {
-    id: 'PTH-992A',
-    title: '1400 Main St Bridge',
-    lat: 34.0522,
-    lng: -118.2437,
-    severity: 'critical',
-    detectedTime: '10:42 AM Today',
-    coordsText: '34.0522° N, 118.2437° W',
-    confidence: '94.5%',
-    image: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'PTH-884B',
-    title: 'Grand Ave & 5th St',
-    lat: 34.0545,
-    lng: -118.2520,
-    severity: 'critical',
-    detectedTime: '11:15 AM Today',
-    coordsText: '34.0545° N, 118.2520° W',
-    confidence: '91.2%',
-    image: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'PTH-771C',
-    title: 'Broadway Boulevard #42',
-    lat: 34.0485,
-    lng: -118.2495,
-    severity: 'moderate',
-    detectedTime: '08:30 AM Today',
-    coordsText: '34.0485° N, 118.2495° W',
-    confidence: '86.8%',
-    image: 'https://images.unsplash.com/photo-1578637387939-43c525550085?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'PTH-650D',
-    title: 'Wilshire & Hope Intersection',
-    lat: 34.0498,
-    lng: -118.2580,
-    severity: 'moderate',
-    detectedTime: 'Yesterday, 4:20 PM',
-    coordsText: '34.0498° N, 118.2580° W',
-    confidence: '82.0%',
-    image: 'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'PTH-512E',
-    title: 'Sunset Highway Mile 12',
-    lat: 34.0570,
-    lng: -118.2400,
-    severity: 'critical',
-    detectedTime: 'Yesterday, 2:10 PM',
-    coordsText: '34.0570° N, 118.2400° W',
-    confidence: '97.1%',
-    image: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'PTH-403F',
-    title: 'Olympic Blvd Overpass',
-    lat: 34.0420,
-    lng: -118.2550,
-    severity: 'moderate',
-    detectedTime: '2 Days Ago',
-    coordsText: '34.0420° N, 118.2550° W',
-    confidence: '89.4%',
-    image: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=600&auto=format&fit=crop',
-  },
-];
+// Helper: format a DB row into the shape the UI expects
+function dbRowToHazard(row) {
+  const lat  = row.latitude;
+  const lng  = row.longitude;
+  const conf = typeof row.confidence === 'number' ? row.confidence : parseFloat(row.confidence);
+  const acc  = row.gps_accuracy != null ? parseFloat(row.gps_accuracy) : null;
+  const ts   = row.timestamp ? new Date(row.timestamp) : new Date();
+  const detectedTime = ts.toLocaleString('en-US', {
+    month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+  return {
+    id:           `PTH-${row.id}`,
+    dbId:         row.id,
+    title:        row.class_name
+                    ? `${row.class_name.charAt(0).toUpperCase() + row.class_name.slice(1)} #${row.id}`
+                    : `Pothole #${row.id}`,
+    lat,
+    lng,
+    severity:     row.severity || 'moderate',
+    detectedTime,
+    coordsText:   `${lat.toFixed(5)}°, ${lng.toFixed(5)}°`,
+    confidence:   `${conf.toFixed(1)}%`,
+    gps_accuracy: acc != null ? `±${acc.toFixed(0)} m` : 'N/A',
+    image:        'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?q=80&w=600&auto=format&fit=crop',
+  };
+}
 
-export default function MapView({ showToast }) {
+export default function MapView({ showToast, apiUrl }) {
   const mapContainerRef = useRef(null);
-  const mapInstanceRef = useRef(null);
-  const markersRef = useRef([]);
+  const mapInstanceRef  = useRef(null);
+  const markersRef      = useRef([]);
 
-  const [selectedHazard, setSelectedHazard] = useState(HAZARDS_DATA[0]);
-  const [isSheetOpen, setIsSheetOpen] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  // Live data from backend
+  const [hazardsData, setHazardsData]       = useState([]);
+  const [isLoadingData, setIsLoadingData]   = useState(true);
+
+  const [selectedHazard, setSelectedHazard] = useState(null);
+  const [isSheetOpen, setIsSheetOpen]       = useState(false);
+  const [searchQuery, setSearchQuery]       = useState('');
   const [filterSeverity, setFilterSeverity] = useState('all');
-  const [geoResults, setGeoResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [geoResults, setGeoResults]         = useState([]);
+  const [isSearching, setIsSearching]       = useState(false);
+  const [showDropdown, setShowDropdown]     = useState(false);
 
-  const criticalCount = HAZARDS_DATA.filter((h) => h.severity === 'critical').length;
-  const moderateCount = HAZARDS_DATA.filter((h) => h.severity === 'moderate').length;
+  const criticalCount = hazardsData.filter(h => h.severity === 'critical').length;
+  const moderateCount = hazardsData.filter(h => h.severity === 'moderate').length;
+
+  // ── Fetch GPS potholes from backend & poll ─────────────────────────────────────
+  const fetchPotholes = useCallback(async () => {
+    const base = (apiUrl || 'http://localhost:5000').replace(/\/+$/, '');
+    try {
+      const res  = await fetch(`${base}/api/gps_potholes`, {
+        headers: { 'Bypass-Tunnel-Reminder': 'true' },
+        signal:  AbortSignal.timeout(5000),
+      });
+      if (!res.ok) return;
+      const rows = await res.json();
+      const mapped = rows.map(dbRowToHazard);
+      setHazardsData(mapped);
+
+      // Auto-select first hazard if none selected yet
+      setSelectedHazard(prev => {
+        if (prev) return prev; // keep existing selection
+        return mapped.length > 0 ? mapped[0] : null;
+      });
+
+      // Auto-center map on first real record (once)
+      if (mapped.length > 0 && mapInstanceRef.current) {
+        const first = mapped[0];
+        mapInstanceRef.current.setView([first.lat, first.lng], 15);
+      }
+    } catch (_) {
+      // Silently ignore network errors — keeps map working when offline
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, [apiUrl]);
+
+  useEffect(() => {
+    fetchPotholes();
+    const interval = setInterval(fetchPotholes, 8000); // poll every 8 seconds
+    return () => clearInterval(interval);
+  }, [fetchPotholes]);
 
   // Filtered local hazard matches
-  const hazardResults = HAZARDS_DATA.filter((h) => {
+  const hazardResults = hazardsData.filter((h) => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return true;
     return (
@@ -152,7 +152,7 @@ export default function MapView({ showToast }) {
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    const activeList = HAZARDS_DATA.filter((h) => {
+    const activeList = hazardsData.filter((h) => {
       const q = searchQuery.trim().toLowerCase();
       const matchesSearch =
         !q || h.title.toLowerCase().includes(q) || h.id.toLowerCase().includes(q);
@@ -274,8 +274,11 @@ export default function MapView({ showToast }) {
 
   const handleRecentering = () => {
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.flyTo([34.0515, -118.2480], 14, { duration: 1 });
-      if (showToast) showToast('Map recentered to Downtown LA', 'info');
+      const center = hazardsData.length > 0
+        ? [hazardsData[0].lat, hazardsData[0].lng]
+        : [20.5937, 78.9629]; // India centre as neutral default
+      mapInstanceRef.current.flyTo(center, 14, { duration: 1 });
+      if (showToast) showToast('Map recentered', 'info');
     }
   };
 
@@ -292,8 +295,21 @@ export default function MapView({ showToast }) {
     }
   };
 
+
   return (
     <main className="flex-1 relative w-full h-[calc(100vh-64px)] flex flex-col overflow-hidden bg-[#0a0e17]">
+      {/* Empty-state overlay when no GPS detections yet */}
+      {!isLoadingData && hazardsData.length === 0 && (
+        <div className="absolute inset-0 z-[600] flex flex-col items-center justify-center gap-4 pointer-events-none">
+          <div className="bg-[#111827]/95 backdrop-blur-xl border border-slate-700/60 rounded-2xl px-8 py-6 flex flex-col items-center gap-3 shadow-2xl max-w-sm text-center">
+            <span className="material-symbols-outlined text-4xl text-amber-400">gps_fixed</span>
+            <h3 className="font-heading text-lg font-bold text-slate-100">No GPS Detections Yet</h3>
+            <p className="text-xs text-slate-400">
+              Go to <span className="text-amber-400 font-semibold">Scan → Live Stream HUD</span>, grant location permission, and point your camera at road hazards. Detections will appear here automatically.
+            </p>
+          </div>
+        </div>
+      )}
       {/* Search & HUD Controls Bar */}
       <div className="absolute top-4 left-4 right-4 z-[400] pointer-events-none flex flex-col md:flex-row justify-between items-start gap-3">
         {/* Search Container with Autocomplete Dropdown */}
@@ -420,7 +436,7 @@ export default function MapView({ showToast }) {
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              All ({HAZARDS_DATA.length})
+              All ({hazardsData.length})
             </button>
             <button
               onClick={() => setFilterSeverity('critical')}
@@ -518,34 +534,26 @@ export default function MapView({ showToast }) {
                 </div>
               </div>
 
-              {/* Details Meta Grid */}
+              {/* Details Meta Grid — severity, confidence, coords, accuracy, time */}
               <div className="col-span-2 grid grid-cols-2 gap-2">
-                <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 flex flex-col justify-center">
-                  <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1">
-                    GPS Coordinates
-                  </span>
-                  <span className="text-xs font-mono font-bold text-cyan-400 truncate">
-                    {selectedHazard.coordsText}
-                  </span>
+                <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-col justify-center">
+                  <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1">GPS Coordinates</span>
+                  <span className="text-xs font-mono font-bold text-cyan-400 truncate">{selectedHazard.coordsText}</span>
                 </div>
 
-                <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 flex flex-col justify-center">
-                  <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1">
-                    Detected Timestamp
-                  </span>
-                  <span className="text-xs font-mono font-bold text-slate-200 truncate">
-                    {selectedHazard.detectedTime}
-                  </span>
+                <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-col justify-center">
+                  <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1">GPS Accuracy</span>
+                  <span className="text-xs font-mono font-bold text-emerald-400">{selectedHazard.gps_accuracy}</span>
                 </div>
 
-                <div className="col-span-2 bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-amber-400 text-base">engineering</span>
-                    <span className="text-xs text-slate-300 font-medium">Status: Maintenance Scheduled</span>
-                  </div>
-                  <span className="text-[11px] font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                    High Priority
-                  </span>
+                <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-col justify-center">
+                  <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1">AI Confidence</span>
+                  <span className="text-xs font-mono font-bold text-amber-400">{selectedHazard.confidence}</span>
+                </div>
+
+                <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-col justify-center">
+                  <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1">Detected At</span>
+                  <span className="text-xs font-mono font-bold text-slate-200 truncate">{selectedHazard.detectedTime}</span>
                 </div>
               </div>
             </div>

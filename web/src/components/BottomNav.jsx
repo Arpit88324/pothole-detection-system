@@ -4,6 +4,7 @@ export default function BottomNav({ user, currentView, onNavigate }) {
     { id: 'map', icon: 'map', label: 'Map' },
     { id: 'analytics', icon: 'insights', label: 'Analytics' },
     { id: 'history', icon: 'history', label: 'History' },
+    { id: 'records', icon: 'dataset', label: 'Records' },
   ];
 
   return (

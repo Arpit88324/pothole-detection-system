@@ -46,11 +46,11 @@ export default function SettingsModal({ isOpen, onClose, apiUrl, setApiUrl, show
   };
 
   const handleReset = () => {
-    const defaultUrl = 'http://localhost:5000';
+    const defaultUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     setTempUrl(defaultUrl);
     setApiUrl(defaultUrl);
     localStorage.setItem('pothole_api_url', defaultUrl);
-    showToast?.('Reset API URL to default localhost:5000', 'info');
+    showToast?.(`Reset API URL to default ${defaultUrl}`, 'info');
   };
 
   return (
@@ -106,7 +106,7 @@ export default function SettingsModal({ isOpen, onClose, apiUrl, setApiUrl, show
             </button>
           </div>
           <p className="text-[11px] text-slate-400">
-            Default: <span className="font-mono text-amber-400">http://localhost:5000</span>. For remote devices or mobile testing, use your tunnel URL.
+            Default: <span className="font-mono text-amber-400">{import.meta.env.VITE_API_URL || 'http://localhost:5000'}</span>. For remote devices or mobile testing, use your tunnel URL.
           </p>
         </div>
 
