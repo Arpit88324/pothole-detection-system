@@ -13,9 +13,22 @@ app = Flask(__name__)
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "*")
 CORS(app, resources={r"/api/*": {"origins": FRONTEND_URL}})
 
-# â”€â”€â”€ Model â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Model ────────────────────────────────────────────────────────────────────
 MODEL_PATH = "runs/detect/train-3/weights/best.pt"
-model = YOLO(MODEL_PATH)
+model = None
+
+import threading
+def load_model_async():
+    global model
+    print("⏳ Loading YOLO model in background to prevent startup blocking...")
+    try:
+        model = YOLO(MODEL_PATH)
+        print("✅ YOLO model loaded and ready.")
+    except Exception as e:
+        print(f"❌ Failed to load YOLO model: {e}")
+
+# Start background thread to load model exactly once per worker process
+threading.Thread(target=load_model_async, daemon=True).start()
 
 # ─── GPS Duplicate-Prevention Thresholds ──────────────────────────────────────
 GPS_DISTANCE_THRESHOLD_M = 30   # metres — closer detections are treated as duplicates
@@ -124,6 +137,9 @@ def haversine_m(lat1, lng1, lat2, lng2):
 
 @app.route("/api/detect", methods=["POST"])
 def detect():
+    if model is None:
+        return jsonify({"error": "AI model is still warming up. Please try again in a moment."}), 503
+
     if "image" not in request.files:
         return jsonify({"error": "No image file provided"}), 400
 
@@ -183,6 +199,9 @@ def detect():
 
 @app.route("/api/stream_detect", methods=["POST"])
 def stream_detect():
+    if model is None:
+        return jsonify({"error": "AI model is still warming up. Please try again in a moment."}), 503
+
     if "image" not in request.files:
         return jsonify({"error": "No image file provided"}), 400
 
@@ -225,7 +244,7 @@ def index():
 
 @app.route("/api/health", methods=["GET"])
 def health():
-    return jsonify({"status": "ok", "model": MODEL_PATH})
+    return jsonify({"status": "ok", "model": MODEL_PATH, "model_ready": model is not None})
 
 
 # â”€â”€â”€ New GPS Routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
