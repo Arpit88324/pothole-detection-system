@@ -104,7 +104,7 @@ Automatic deployment via GitHub Actions is pre-configured in `.github/workflows/
 ## 👤 Author & Maintainer
 
 **Aroit Wasnik**
-- GitHub: [@AroitWasnik](https://github.com/Arpit88324)
+- GitHub: [@ArpitWasnik](https://github.com/Arpit88324)
 
 ---
 
