@@ -106,19 +106,30 @@ export default function MapView({ showToast, apiUrl }) {
     if (mapInstanceRef.current) return;
 
     const map = L.map(mapContainerRef.current, {
-      center: [34.0515, -118.2480],
-      zoom: 14,
+      center: [20.5937, 78.9629], // Fixed orientation: Default to India
+      zoom: 5,
       zoomControl: false,
     });
 
     // Add Geoapify Carto Retina Tile Layer
-    const tileUrl = `https://maps.geoapify.com/v1/tile/carto/{z}/{x}/{y}@2x.png?apiKey=${GEOAPIFY_KEY}`;
-    
-    L.tileLayer(tileUrl, {
-      attribution:
-        'Powered by <a href="https://www.geoapify.com/" target="_blank">Geoapify</a> | &copy; OpenStreetMap',
+    const streetLayer = L.tileLayer(`https://maps.geoapify.com/v1/tile/carto/{z}/{x}/{y}@2x.png?apiKey=${GEOAPIFY_KEY}`, {
+      attribution: 'Powered by <a href="https://www.geoapify.com/" target="_blank">Geoapify</a> | &copy; OpenStreetMap',
       maxZoom: 20,
-    }).addTo(map);
+    });
+
+    // Add Satellite Layer
+    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri',
+      maxZoom: 20,
+    });
+
+    satelliteLayer.addTo(map); // Default to satellite view
+
+    // Add Layer Control
+    L.control.layers({
+      "Satellite View": satelliteLayer,
+      "Street View": streetLayer
+    }, null, { position: 'bottomleft' }).addTo(map);
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
