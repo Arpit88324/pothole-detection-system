@@ -103,8 +103,8 @@ Automatic deployment via GitHub Actions is pre-configured in `.github/workflows/
 
 ## 👤 Author & Maintainer
 
-**Prajwal Pachbudhe**
-- GitHub: [@PrajwalPachbudhe](https://github.com/PrajwalPachbudhe)
+**Aroit Wasnik**
+- GitHub: [@ArpitWasnik](https://github.com/Arpit88324)
 
 ---
 
