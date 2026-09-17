@@ -54,7 +54,7 @@ export default function MapView({ showToast, apiUrl }) {
 
   // ── Fetch GPS potholes from backend & poll ─────────────────────────────────────
   const fetchPotholes = useCallback(async () => {
-    const base = (apiUrl || 'http://localhost:5000').replace(/\/+$/, '');
+    const base = (apiUrl || 'https://handprint-earmark-babied.ngrok-free.dev').replace(/\/+$/, '');
     try {
       const res  = await fetch(`${base}/api/gps_potholes`, {
         headers: { 'Bypass-Tunnel-Reminder': 'true' },

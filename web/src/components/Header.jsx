@@ -75,7 +75,7 @@ export default function Header({ user, onLogout, currentView, onNavigate, onOpen
               API {isApiOnline ? 'ONLINE' : 'CHECK'}
             </span>
             <span className="text-[11px] font-mono text-slate-200 font-bold leading-none truncate max-w-[100px]">
-              {apiUrl ? apiUrl.replace(/^https?:\/\//, '') : 'localhost:5000'}
+              {apiUrl ? apiUrl.replace(/^https?:\/\//, '') : 'handprint-earmark-babied.ngrok-free.dev'}
             </span>
           </div>
         </button>

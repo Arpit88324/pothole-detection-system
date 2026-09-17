@@ -1,11 +1,11 @@
-﻿import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 export default function RecordsView({ apiUrl, showToast, onNavigate }) {
   const [records, setRecords]     = useState([]);
   const [loading, setLoading]     = useState(true);
   const [lastRefresh, setLastRefresh] = useState(null);
 
-  const base = (apiUrl || "http://localhost:5000").replace(/\/+$/, "");
+  const base = (apiUrl || "https://handprint-earmark-babied.ngrok-free.dev").replace(/\/+$/, "");
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);

@@ -347,6 +347,16 @@ def delete_gps_pothole(pothole_id):
 if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 5000))
-    print(f"ðŸš€ Pothole Detection API starting on port {port}")
+    
+    # Start ngrok tunnel automatically with the static domain
+    try:
+        from pyngrok import ngrok
+        ngrok.set_auth_token("3JRlqS7mwOFjehLsJrqgiTN9wdd_3JvjMoFLubeBcvfH2ZfiB")
+        public_url = ngrok.connect(port, domain="handprint-earmark-babied.ngrok-free.dev").public_url
+        print(f"🌐 ngrok tunnel available at: {public_url}")
+    except Exception as e:
+        print(f"⚠️ Could not start ngrok: {e}")
+
+    print(f"🚀 Pothole Detection API starting on port {port}")
     app.run(host="0.0.0.0", port=port, debug=False)
 

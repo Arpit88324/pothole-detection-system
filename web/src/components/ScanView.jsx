@@ -67,7 +67,7 @@ export default function ScanView({ onDetectionComplete, isLoading, setIsLoading,
       const formData = new FormData();
       formData.append('image', file);
 
-      const targetUrl = (apiUrl || 'http://localhost:5000').replace(/\/+$/, '');
+      const targetUrl = (apiUrl || 'https://handprint-earmark-babied.ngrok-free.dev').replace(/\/+$/, '');
       const response = await fetch(`${targetUrl}/api/detect`, {
         method: 'POST',
         headers: { 'Bypass-Tunnel-Reminder': 'true' },
@@ -198,7 +198,7 @@ export default function ScanView({ onDetectionComplete, isLoading, setIsLoading,
           const formData = new FormData();
           formData.append('image', blob);
 
-          const targetUrl = (apiUrl || 'http://localhost:5000').replace(/\/+$/, '');
+          const targetUrl = (apiUrl || 'https://handprint-earmark-babied.ngrok-free.dev').replace(/\/+$/, '');
           const res = await fetch(`${targetUrl}/api/stream_detect`, {
             method: 'POST',
             headers: { 'Bypass-Tunnel-Reminder': 'true' },
@@ -223,7 +223,7 @@ export default function ScanView({ onDetectionComplete, isLoading, setIsLoading,
               lastGpsSaveRef.current = now; // throttle regardless of GPS result
               const topBox   = filteredBoxes[0];
               const severity = getSeverityLabel(filteredBoxes.length);
-              const tUrl     = (apiUrl || 'http://localhost:5000').replace(/\/+$/, '');
+              const tUrl     = (apiUrl || 'https://handprint-earmark-babied.ngrok-free.dev').replace(/\/+$/, '');
 
               // Capture GPS at this exact moment — non-blocking via .then/.catch
               getPositionOnce().then((fix) => {
@@ -681,7 +681,7 @@ export default function ScanView({ onDetectionComplete, isLoading, setIsLoading,
             className="text-xs font-mono text-cyan-400 hover:underline flex items-center gap-1 truncate text-left"
           >
             <span className="material-symbols-outlined text-xs">tune</span>
-            {apiUrl || 'http://localhost:5000'}
+            {apiUrl || 'https://handprint-earmark-babied.ngrok-free.dev'}
           </button>
         </div>
 

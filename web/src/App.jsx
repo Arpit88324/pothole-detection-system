@@ -29,9 +29,10 @@ function App() {
   });
 
   // API Backend URL state (stored in localStorage)
-  const [apiUrl, setApiUrl] = useState(() => {
-    return import.meta.env.VITE_API_URL || localStorage.getItem('pothole_api_url') || 'http://localhost:5000';
-  });
+  const getInitialApiUrl = () => {
+    return import.meta.env.VITE_API_URL || localStorage.getItem('pothole_api_url') || 'https://handprint-earmark-babied.ngrok-free.dev';
+  };
+  const [apiUrl, setApiUrl] = useState(getInitialApiUrl);
   const [isApiOnline, setIsApiOnline] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
